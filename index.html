@@ -3,51 +3,228 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>一个不知名的小网站</title>
+    <title>文件搜索引擎</title>
     <style>
         body {
             font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
             margin: 0;
             padding: 20px;
-            background-color: #f4f4f4;
         }
-        h1 {
-            color: #333;
+        .container {
+            max-width: 800px;
+            margin: auto;
+            text-align: center;
         }
-        form {
-            margin-bottom: 20px;
+        .logo {
+            vertical-align: middle;
+            margin-right: 10px;
         }
-        input[type="text"], input[type="submit"] {
+        .search-bar {
+            margin: 20px 0;
+            position: relative;
+        }
+        input[type="text"] {
+            border: 1px solid #ccc;
+            border-radius: 20px;
             padding: 10px;
-            margin: 5px 0;
-            width: 100%;
+            width: 80%;
+            font-size: 16px;
+        }
+        button {
+            position: absolute;
+            right: 10px;
+            border: none;
+            border-radius: 20px;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
         }
         .result {
-            margin-top: 20px;
             padding: 10px;
-            background-color: #fff;
+            margin: 5px 0;
+            border-bottom: 1px solid #ccc;
+        }
+        .pagination {
+            margin: 20px 0;
+        }
+        .search-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 10%;
+            width: 80%;
             border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: white;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+            text-align: left;
+        }
+        .search-suggestions div {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            cursor: pointer;
+        }
+        .search-suggestions div img {
+            width: 16px;
+            height: 16px;
+            margin-right: 10px;
+        }
+        .search-suggestions div:hover {
+            background-color: #f0f0f0;
+        }
+        #loading {
+            display: none;
+        }
+        @media (max-width: 600px) {
+            input[type="text"], button {
+                width: 100%;
+                margin-top: 10px;
+            }
         }
     </style>
 </head>
 <body>
-
-    <h1>欢迎来到我的网页</h1>
-    <form id="myForm">
-        <label for="name">输入你的名字:</label>
-        <input type="text" id="name" name="name" required>
-        <input type="submit" value="提交">
-    </form>
-
-    <div class="result" id="result"></div>
-
+    <div class="container">
+        <h1>
+            <img src="D:/IR/OIP.jfif" alt="Logo" class="logo" width="30" height="30"> 文件搜索引擎
+        </h1>
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="输入搜索内容..." />
+            <button id="searchButton">🔍</button>
+            <div class="search-suggestions" id="suggestions"></div>
+        </div>
+        <div id="results"></div>
+        <div id="pagination"></div>
+        <div id="loading">加载中...</div>
+    </div>
     <script>
-        document.getElementById('myForm').addEventListener('submit', function(event) {
-            event.preventDefault(); // 阻止表单默认提交
-            const name = document.getElementById('name').value;
-            document.getElementById('result').innerText = ` ${name}，请开心一点，生活还是很美好的！祝好梦！`;
-        });
-    </script>
+        const searchInput = document.getElementById("searchInput");
+        const searchButton = document.getElementById("searchButton");
+        const resultsContainer = document.getElementById("results");
+        const paginationContainer = document.getElementById("pagination");
+        const suggestionsContainer = document.getElementById("suggestions");
+        const loading = document.getElementById("loading");
+        let currentPage = 1;
+        const resultsPerPage = 10;
 
+        searchButton.addEventListener("click", performSearch);
+        searchInput.addEventListener("focus", loadSearchHistory);
+        searchInput.addEventListener("blur", hideSuggestionsOnBlur);
+        searchInput.addEventListener("keypress", function (e) {
+            if (e.key === "Enter") {
+                performSearch();
+            }
+        });
+
+        function loadSearchHistory() {
+            const searchHistory = JSON.parse(localStorage.getItem("searchHistory")) || [];
+            suggestionsContainer.innerHTML = "";
+            searchHistory.forEach(item => {
+                const historyItem = document.createElement("div");
+                historyItem.onclick = () => {
+                    searchInput.value = item;
+                    performSearch();
+                };
+
+                const clockIcon = document.createElement("img");
+                clockIcon.src = "D:/IR/glass.jfif";
+                clockIcon.alt = "时钟图标";
+
+                const textNode = document.createTextNode(item);
+
+                historyItem.appendChild(clockIcon);
+                historyItem.appendChild(textNode);
+                suggestionsContainer.appendChild(historyItem);
+            });
+
+            if (searchHistory.length > 0) {
+                suggestionsContainer.style.display = "block";
+            }
+        }
+
+        function hideSuggestionsOnBlur() {
+            setTimeout(() => {
+                suggestionsContainer.style.display = "none";
+            }, 200);
+        }
+
+        function saveSearchHistory(query) {
+            let searchHistory = JSON.parse(localStorage.getItem("searchHistory")) || [];
+            if (!searchHistory.includes(query)) {
+                searchHistory.unshift(query);
+                if (searchHistory.length > 5) searchHistory.pop();
+                localStorage.setItem("searchHistory", JSON.stringify(searchHistory));
+            }
+        }
+
+        function performSearch() {
+            loading.style.display = "block";
+            const query = searchInput.value;
+            if (query) saveSearchHistory(query);
+            const mockData = {
+                totalResults: 25,
+                results: Array.from({ length: 10 }, (_, i) => ({
+                    title: `测试结果 ${i + 1} - 搜索内容：${query}`,
+                    url: `#`
+                }))
+            };
+            displayResults(mockData.results);
+            setupPagination(mockData.totalResults);
+            loading.style.display = "none";
+        }
+
+        function displayResults(results) {
+            resultsContainer.innerHTML = "";
+            results.forEach(result => {
+                const resultDiv = document.createElement("div");
+                resultDiv.classList.add("result");
+                const boldedTitle = highlightQuery(result.title, searchInput.value);
+                resultDiv.innerHTML = `<a href="${result.url}" target="_blank">${boldedTitle}</a>`;
+                resultsContainer.appendChild(resultDiv);
+            });
+        }
+
+        function highlightQuery(title, query) {
+            if (!query) return title;
+            const regex = new RegExp(`(${query})`, 'gi');
+            return title.replace(regex, '<strong>$1</strong>');
+        }
+
+        function setupPagination(totalResults) {
+            paginationContainer.innerHTML = "";
+            const totalPages = Math.min(10, Math.ceil(totalResults / resultsPerPage));
+            for (let i = 1; i <= totalPages; i++) {
+                const pageButton = document.createElement("button");
+                pageButton.textContent = i;
+                pageButton.addEventListener("click", () => {
+                    currentPage = i;
+                    performSearch();
+                });
+                paginationContainer.appendChild(pageButton);
+            }
+        }
+
+        window.onload = () => {
+            searchInput.addEventListener("input", showSuggestions);
+        };
+
+        function showSuggestions() {
+            const query = searchInput.value;
+            if (query.length > 0) {
+                loadSearchHistory();
+            } else {
+                suggestionsContainer.style.display = "none";
+            }
+        }
+    </script>
 </body>
 </html>
